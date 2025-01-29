@@ -1,46 +1,53 @@
-import express from "express";
-import cors from "cors";
-import helmet from "helmet";
-import dotenv from "dotenv";
-import { rateLimiter } from "./utils/rateLimit";
-
-dotenv.config();
+import express from 'express';
+import cors from 'cors';
+import pool, { initDatabase } from './db';
 
 const app = express();
-const port = process.env.PORT || 3001;
-
-// ミドルウェアの設定
-app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-// レート制限の適用
-// デフォルトでIPアドレスベースの制限を適用
-app.use(rateLimiter.middleware());
+const PORT = process.env.PORT || 3003;
 
-// バッチリクエスト用のエンドポイント例
-app.post("/api/batch", async (req, res) => {
+// 移動記録を保存するエンドポイント
+app.post('/api/movements', async (req, res) => {
     try {
-        const requests = req.body.requests as (() => Promise<any>)[];
-        const results = await rateLimiter.executeBatch(
-            requests,
-            () => req.ip || "unknown"
+        const { origin, destination, distance, travelMode, memo } = req.body;
+
+        const result = await pool.query(
+            'INSERT INTO movements (origin, destination, distance, travel_mode, memo) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [origin, destination, distance, travelMode, memo]
         );
-        res.json({ results });
+
+        res.json(result.rows[0]);
     } catch (error) {
-        if (error instanceof Error) {
-            res.status(429).json({ error: error.message });
-        } else {
-            res.status(500).json({ error: "不明なエラーが発生しました" });
-        }
+        console.error('Error saving movement:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// テスト用エンドポイント
-app.get("/api/test", (req, res) => {
-    res.json({ message: "レート制限テスト", timestamp: new Date().toISOString() });
+// 移動記録を取得するエンドポイント
+app.get('/api/movements', async (_req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM movements ORDER BY created_at DESC'
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching movements:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
-app.listen(port, () => {
-    console.log(`サーバーが起動しました - http://localhost:${port}`);
-});
+const startServer = async () => {
+    try {
+        await initDatabase();
+        app.listen(PORT, () => {
+            console.log(`Server is running on http://localhost:${PORT}`);
+        });
+    } catch (error) {
+        console.error('Failed to start server:', error);
+        process.exit(1);
+    }
+};
+
+startServer();

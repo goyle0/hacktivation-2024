@@ -15,9 +15,6 @@ export default function Header() {
           <Link href="/">
             <Button variant="ghost">ホーム</Button>
           </Link>
-          <Link href="/map">
-            <Button variant="ghost">マップ</Button>
-          </Link>
           <Link href="/history">
             <Button variant="ghost">移動履歴</Button>
           </Link>

@@ -1,65 +1,161 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api"
+import { useState, useCallback, useRef } from 'react';
+import { GoogleMap, DirectionsRenderer, LoadScript } from '@react-google-maps/api';
+import usePlacesAutocomplete, { getGeocode, getLatLng } from 'use-places-autocomplete';
 
-const MapPage = () => {
-  const [currentPosition, setCurrentPosition] = useState(null)
-  const [distance, setDistance] = useState(0)
-  const [transportMode, setTransportMode] = useState("walking")
+const containerStyle = {
+  width: '100%',
+  height: 'calc(100vh - 64px)'
+};
 
-  useEffect(() => {
-    if (navigator.geolocation) {
-      const watchId = navigator.geolocation.watchPosition(
-        (position) => {
-          setCurrentPosition({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          })
-          // Here we would calculate distance and determine transport mode
-          // For now, we'll just increment distance randomly
-          setDistance((prev) => prev + Math.random() * 10)
-        },
-        (error) => console.error(error),
-        { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 },
-      )
-      return () => navigator.geolocation.clearWatch(watchId)
+const center = {
+  lat: 35.6812362,
+  lng: 139.7671248
+};
+
+const libraries: ("places")[] = ["places"];
+
+export default function MapPage() {
+  const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null);
+  const originRef = useRef<HTMLInputElement>(null);
+  const destinationRef = useRef<HTMLInputElement>(null);
+
+  const {
+    ready: originReady,
+    value: originValue,
+    suggestions: { status: originStatus, data: originData },
+    setValue: setOriginValue,
+    clearSuggestions: clearOriginSuggestions,
+  } = usePlacesAutocomplete({
+    requestOptions: { language: 'ja' },
+    debounce: 300,
+  });
+
+  const {
+    ready: destReady,
+    value: destValue,
+    suggestions: { status: destStatus, data: destData },
+    setValue: setDestValue,
+    clearSuggestions: clearDestSuggestions,
+  } = usePlacesAutocomplete({
+    requestOptions: { language: 'ja' },
+    debounce: 300,
+  });
+
+  const calculateRoute = useCallback(async () => {
+    if (!originValue || !destValue) {
+      return;
     }
-  }, [])
 
-  const mapContainerStyle = {
-    width: "100%",
-    height: "400px",
-  }
+    const directionsService = new google.maps.DirectionsService();
 
-  const center = currentPosition || { lat: 35.6762, lng: 139.6503 } // Default to Tokyo
+    try {
+      const [originResults, destResults] = await Promise.all([
+        getGeocode({ address: originValue }),
+        getGeocode({ address: destValue })
+      ]);
+
+      const [originLocation, destLocation] = await Promise.all([
+        getLatLng(originResults[0]),
+        getLatLng(destResults[0])
+      ]);
+
+      const results = await directionsService.route({
+        origin: originLocation,
+        destination: destLocation,
+        travelMode: google.maps.TravelMode.DRIVING,
+      });
+
+      setDirectionsResponse(results);
+    } catch (error) {
+      console.error('Error calculating route:', error);
+    }
+  }, [originValue, destValue]);
 
   return (
-    <div className="container">
-      <h1 className="display-6 mb-4">あなたの移動</h1>
-      <div className="row mb-4">
-        <div className="col-md-6">
-          <div className="card">
-            <div className="card-body">
-              <h5 className="card-title">統計</h5>
-              <p className="card-text">距離: {distance.toFixed(2)} メートル</p>
-              <p className="card-text">移動手段: {transportMode === "walking" ? "徒歩" : "自転車"}</p>
-            </div>
+    <div className="flex flex-col h-screen">
+      <div className="p-4 bg-white shadow-md">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="出発地"
+              value={originValue}
+              onChange={(e) => setOriginValue(e.target.value)}
+              ref={originRef}
+              className="w-full p-2 border rounded"
+              disabled={!originReady}
+            />
+            {originStatus === "OK" && (
+              <ul className="absolute z-10 bg-white border rounded mt-1 w-full max-w-md">
+                {originData.map(({ place_id, description }) => (
+                  <li
+                    key={place_id}
+                    className="p-2 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => {
+                      setOriginValue(description, false);
+                      clearOriginSuggestions();
+                    }}
+                  >
+                    {description}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="目的地"
+              value={destValue}
+              onChange={(e) => setDestValue(e.target.value)}
+              ref={destinationRef}
+              className="w-full p-2 border rounded"
+              disabled={!destReady}
+            />
+            {destStatus === "OK" && (
+              <ul className="absolute z-10 bg-white border rounded mt-1 w-full max-w-md">
+                {destData.map(({ place_id, description }) => (
+                  <li
+                    key={place_id}
+                    className="p-2 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => {
+                      setDestValue(description, false);
+                      clearDestSuggestions();
+                    }}
+                  >
+                    {description}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <button
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            onClick={calculateRoute}
+          >
+            ルート検索
+          </button>
         </div>
       </div>
-      <div className="card">
-        <div className="card-body">
-          <LoadScript googleMapsApiKey="YOUR_GOOGLE_MAPS_API_KEY">
-            <GoogleMap mapContainerStyle={mapContainerStyle} zoom={15} center={center}>
-              {currentPosition && <Marker position={currentPosition} />}
-            </GoogleMap>
-          </LoadScript>
-        </div>
+
+      <div className="flex-1">
+        <LoadScript
+          googleMapsApiKey="AIzaSyCNDW8Tmx_FIpsLXhYQhpWp9Tgo5qf3Ivg"
+          libraries={libraries}
+        >
+          <GoogleMap
+            mapContainerStyle={containerStyle}
+            center={center}
+            zoom={15}
+          >
+            {directionsResponse && (
+              <DirectionsRenderer directions={directionsResponse} />
+            )}
+          </GoogleMap>
+        </LoadScript>
       </div>
     </div>
-  )
+  );
 }
-
-export default MapPage
-
