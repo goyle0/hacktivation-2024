@@ -12,14 +12,14 @@ export default function Header() {
           <span className="font-bold text-xl">FITMOVE</span>
         </Link>
         <nav className="ml-auto flex items-center space-x-4">
-          <Link href="/dashboard">
-            <Button variant="ghost">ダッシュボード</Button>
+          <Link href="/">
+            <Button variant="ghost">ホーム</Button>
           </Link>
-          <Link href="/rewards">
-            <Button variant="ghost">報酬</Button>
+          <Link href="/map">
+            <Button variant="ghost">マップ</Button>
           </Link>
-          <Link href="/profile">
-            <Button variant="ghost">プロフィール</Button>
+          <Link href="/history">
+            <Button variant="ghost">移動履歴</Button>
           </Link>
         </nav>
       </div>
