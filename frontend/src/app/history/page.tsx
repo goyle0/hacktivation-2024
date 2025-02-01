@@ -106,7 +106,7 @@ export default function HistoryPage() {
       const contract = new ethers.Contract(contractAddress, MovementRecordABI, signer);
 
       // スマートコントラクトの関数を呼び出し
-      const ethAmount = (parseFloat(movement.distance) / 800) * 0.00001;
+      const ethAmount = (parseFloat(movement.distance) / 0.8) * 0.00001;
       const tx = await contract.claimReward(
         movement.origin,
         movement.destination,
@@ -246,7 +246,7 @@ export default function HistoryPage() {
                           {movement.distance}
                         </td>
                         <td className="px-6 py-4 text-sm text-blue-600 font-medium">
-                          {((parseFloat(movement.distance) / 800) * 0.00001).toFixed(8) + ' ETH'}
+                          {((parseFloat(movement.distance) / 0.8) * 0.00001).toFixed(8) + ' ETH'}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">
                           <button
