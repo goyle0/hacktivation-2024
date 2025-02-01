@@ -16,8 +16,8 @@ export const initDatabase = async () => {
                 origin TEXT NOT NULL,
                 destination TEXT NOT NULL,
                 distance TEXT NOT NULL,
-                travel_mode TEXT NOT NULL,
-                memo TEXT,
+                duration TEXT NOT NULL,
+                travel_mode TEXT NOT NULL DEFAULT 'DRIVING',
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         `);

@@ -9,13 +9,13 @@ app.use(express.json());
 const PORT = process.env.PORT || 3003;
 
 // 移動記録を保存するエンドポイント
-app.post('/api/movements', async (req, res) => {
+app.post('/api/routes', async (req, res) => {
     try {
-        const { origin, destination, distance, travelMode, memo } = req.body;
+        const { origin, destination, distance, duration, transportMode, timestamp } = req.body;
 
         const result = await pool.query(
-            'INSERT INTO movements (origin, destination, distance, travel_mode, memo) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [origin, destination, distance, travelMode, memo]
+            'INSERT INTO movements (origin, destination, distance, duration, travel_mode, created_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [origin, destination, distance, duration || '', transportMode, timestamp]
         );
 
         res.json(result.rows[0]);
@@ -26,7 +26,7 @@ app.post('/api/movements', async (req, res) => {
 });
 
 // 移動記録を取得するエンドポイント
-app.get('/api/movements', async (_req, res) => {
+app.get('/api/routes', async (_req, res) => {
     try {
         const result = await pool.query(
             'SELECT * FROM movements ORDER BY created_at DESC'
