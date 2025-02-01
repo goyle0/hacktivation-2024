@@ -18,7 +18,6 @@ const center = {
     lng: 130.4205
 };
 
-
 export default function RecordPage() {
     const router = useRouter();
     const { isLoaded } = useJsApiLoader({
@@ -34,7 +33,7 @@ export default function RecordPage() {
 
     const [distance, setDistance] = useState<string>("");
     const [duration, setDuration] = useState<string>("");
-        const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null);
+    const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null);
     const [error, setError] = useState<string>("");
 
     const {
@@ -113,12 +112,13 @@ export default function RecordPage() {
         }
 
         try {
+            // バックエンドに記録を保存
             const record = {
                 origin: originValue,
                 destination: destValue,
                 distance: distance,
                 duration: duration,
-                                timestamp: formatDateToISO(recordedAt),
+                timestamp: formatDateToISO(recordedAt),
             };
 
             const response = await fetch('http://localhost:3003/api/routes', {
@@ -130,7 +130,7 @@ export default function RecordPage() {
             });
 
             if (!response.ok) {
-                throw new Error('保存に失敗しました。時間をおいて再度お試しください。');
+                throw new Error('バックエンドへの保存に失敗しました。時間をおいて再度お試しください。');
             }
 
             router.push('/history');
@@ -175,7 +175,6 @@ export default function RecordPage() {
                         step="1"  // 秒単位の入力を許可
                     />
                 </div>
-
 
                 <div>
                     <label className="block text-sm font-medium mb-2">出発地</label>
@@ -264,7 +263,7 @@ export default function RecordPage() {
                     onClick={handleSubmit}
                     className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
                 >
-                    保存
+                    記録を保存
                 </button>
             </div>
         </div>

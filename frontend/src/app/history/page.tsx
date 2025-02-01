@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { ethers } from 'ethers';
+import { MovementRecordABI } from '@/types/contracts';
 
 interface Movement {
   id: number;
@@ -18,6 +20,63 @@ export default function HistoryPage() {
   const [groupedMovements, setGroupedMovements] = useState<{ [key: string]: Movement[] }>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [account, setAccount] = useState<string>("");
+  const [isConnected, setIsConnected] = useState(false);
+
+  // MetaMaskとの接続処理
+  const connectWallet = async () => {
+    if (typeof window.ethereum === "undefined") {
+      setError("MetaMaskをインストールしてください");
+      return;
+    }
+
+    try {
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts"
+      });
+      setAccount(accounts[0]);
+      setIsConnected(true);
+    } catch (err) {
+      console.error("Failed to connect wallet:", err);
+      setError("ウォレット接続に失敗しました");
+    }
+  };
+
+  // Eth受け取り申請処理
+  const claimEth = async (movement: Movement) => {
+    if (!isConnected) {
+      setError("先にMetaMaskを接続してください");
+      return;
+    }
+
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      
+      const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
+      if (!contractAddress) {
+        throw new Error("Contract address is not configured");
+      }
+      
+      const contract = new ethers.Contract(contractAddress, MovementRecordABI, signer);
+
+      // スマートコントラクトの関数を呼び出し
+      const ethAmount = parseFloat(movement.distance) / 800 * 0.00001;
+      const tx = await contract.claimReward(
+        movement.origin,
+        movement.destination,
+        movement.distance,
+        movement.timestamp,
+        ethers.utils.parseEther(ethAmount.toFixed(8))
+      );
+
+      await tx.wait();
+      alert('Eth受け取り申請が完了しました');
+    } catch (err) {
+      console.error("Failed to claim ETH:", err);
+      setError("Eth受け取り申請に失敗しました");
+    }
+  };
 
   useEffect(() => {
     const fetchMovements = async () => {
@@ -71,7 +130,7 @@ export default function HistoryPage() {
         throw new Error('不正な日時形式です');
       }
 
-      // JSTに変換（UTCからの9時間オフセット）
+      // JSTに変換(UTCからの9時間オフセット)
       const jstDate = new Date(date.getTime() + (9 * 60 * 60 * 1000));
 
       const year = jstDate.getFullYear();
@@ -142,6 +201,19 @@ export default function HistoryPage() {
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">移動履歴</h1>
 
+      {!isConnected ? (
+        <button
+          onClick={connectWallet}
+          className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 mb-4"
+        >
+          MetaMaskと接続
+        </button>
+      ) : (
+        <p className="text-sm text-green-600 mb-4">
+          接続済み: {account.slice(0, 6)}...{account.slice(-4)}
+        </p>
+      )}
+
       <div className="space-y-6">
         {Object.keys(groupedMovements)
           .sort((a, b) => {
@@ -164,10 +236,10 @@ export default function HistoryPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">記録日時</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">出発地</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">目的地</th>
-<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">移動距離</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">移動距離</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">獲得Eth</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Eth受け取り申請</th>
-<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">メモ</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">メモ</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -182,30 +254,29 @@ export default function HistoryPage() {
                         <td className="px-6 py-4 text-sm text-gray-900">
                           {movement.destination}
                         </td>
-<td className="px-6 py-4 text-sm text-gray-900">
-  {movement.distance}
-</td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {movement.distance}
+                        </td>
                         <td className="px-6 py-4 text-sm text-blue-600 font-medium">
                           {(parseFloat(movement.distance) / 800 * 0.00001).toFixed(8) + ' ETH'}
                         </td>
-<td className="px-6 py-4 text-sm text-gray-900">
-  <button
-    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-    onClick={() => {
-      alert('Eth受け取り申請を送信しました');
-    }}
-  >
-    Eth受け取り申請
-  </button>
-</td>
-<td className="px-6 py-4 text-sm text-gray-900">
-  <textarea
-    defaultValue={movement.memo}
-    placeholder="メモを入力"
-    className="w-full p-2 border rounded"
-    rows={2}
-  />
-</td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          <button
+                            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+                            onClick={() => claimEth(movement)}
+                            disabled={!isConnected}
+                          >
+                            Eth受け取り申請
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          <textarea
+                            defaultValue={movement.memo}
+                            placeholder="メモを入力"
+                            className="w-full p-2 border rounded"
+                            rows={2}
+                          />
+                        </td>
                       </tr>
                     ))}
                   </tbody>
