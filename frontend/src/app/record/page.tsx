@@ -102,7 +102,9 @@ export default function RecordPage() {
 
     const formatDateToISO = (dateString: string): string => {
         const date = new Date(dateString);
-        return date.toISOString();
+        // タイムゾーンオフセットを考慮して変換
+        const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+        return new Date(date.getTime() - userTimezoneOffset).toISOString();
     };
 
     const handleSubmit = async () => {

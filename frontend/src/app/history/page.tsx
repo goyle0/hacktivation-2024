@@ -42,6 +42,51 @@ export default function HistoryPage() {
     }
   };
 
+  const getJSTDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+  };
+
+  const fetchMovements = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('http://localhost:3003/api/routes');
+      if (!response.ok) {
+        throw new Error('データの取得に失敗しました');
+      }
+      const data = await response.json();
+      // 記録日時でグループ化
+      const grouped = data.reduce((groups: { [key: string]: Movement[] }, movement: Movement) => {
+        const jstDate = getJSTDate(movement.created_at || movement.timestamp);
+        const year = jstDate.getFullYear();
+        const month = String(jstDate.getMonth() + 1).padStart(2, '0');
+        const day = String(jstDate.getDate()).padStart(2, '0');
+        const dateKey = `${year}年${month}月${day}日`;
+
+        if (!groups[dateKey]) {
+          groups[dateKey] = [];
+        }
+        groups[dateKey].push(movement);
+        return groups;
+      }, {});
+
+      // 各グループ内を記録時間順にソート
+      Object.keys(grouped).forEach(date => {
+        grouped[date].sort((a: Movement, b: Movement) => {
+          const dateA = getJSTDate(a.created_at || a.timestamp);
+          const dateB = getJSTDate(b.created_at || b.timestamp);
+          return dateA.getTime() - dateB.getTime();
+        });
+      });
+
+      setGroupedMovements(grouped);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Eth受け取り申請処理
   const claimEth = async (movement: Movement) => {
     if (!isConnected) {
@@ -61,17 +106,16 @@ export default function HistoryPage() {
       const contract = new ethers.Contract(contractAddress, MovementRecordABI, signer);
 
       // スマートコントラクトの関数を呼び出し
-      const ethAmount = parseFloat(movement.distance) / 800 * 0.00001;
+      const ethAmount = (parseFloat(movement.distance) / 800) * 0.00001;
       const tx = await contract.claimReward(
         movement.origin,
         movement.destination,
         movement.distance,
-        movement.timestamp,
+        movement.created_at || movement.timestamp,
         ethers.utils.parseEther(ethAmount.toFixed(8))
       );
 
-      await tx.wait();
-      alert('Eth受け取り申請が完了しました');
+      alert('Eth受け取り申請を送信しました');
     } catch (err) {
       console.error("Failed to claim ETH:", err);
       setError("Eth受け取り申請に失敗しました");
@@ -79,59 +123,19 @@ export default function HistoryPage() {
   };
 
   useEffect(() => {
-    const fetchMovements = async () => {
-      try {
-        const response = await fetch('http://localhost:3003/api/routes');
-        if (!response.ok) {
-          throw new Error('データの取得に失敗しました');
-        }
-        const data = await response.json();
-        // 記録日時でグループ化
-        const grouped = data.reduce((groups: { [key: string]: Movement[] }, movement: Movement) => {
-          const date = new Date(movement.timestamp);
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const dateKey = `${year}-${month}-${day}`;
-
-          if (!groups[dateKey]) {
-            groups[dateKey] = [];
-          }
-          groups[dateKey].push(movement);
-          return groups;
-        }, {});
-
-        // 各グループ内を記録時間順にソート
-        Object.keys(grouped).forEach(date => {
-          grouped[date].sort((a: Movement, b: Movement) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-          );
-        });
-
-        setGroupedMovements(grouped);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchMovements();
   }, []);
 
   const formatDateTime = (dateString: string) => {
+    if (!dateString) {
+      return '日時未設定';
+    }
+
     try {
-      if (!dateString) {
-        throw new Error('日時が指定されていません');
+      const jstDate = getJSTDate(dateString);
+      if (isNaN(jstDate.getTime())) {
+        return '不正な日時形式';
       }
-
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        throw new Error('不正な日時形式です');
-      }
-
-      // JSTに変換(UTCからの9時間オフセット)
-      const jstDate = new Date(date.getTime() + (9 * 60 * 60 * 1000));
 
       const year = jstDate.getFullYear();
       const month = String(jstDate.getMonth() + 1).padStart(2, '0');
@@ -143,35 +147,15 @@ export default function HistoryPage() {
       return `${year}年${month}月${day}日 ${hours}:${minutes}:${seconds}`;
     } catch (error) {
       console.error('日時のフォーマットエラー:', error, dateString);
-      return '不明な日時';
+      return '不正な日時形式';
     }
   };
 
   const formatGroupDate = (dateString: string) => {
-    try {
-      if (!dateString) {
-        throw new Error('日時が指定されていません');
-      }
-
-      const parts = dateString.split('-');
-      if (parts.length !== 3) {
-        throw new Error('不正な日付形式です');
-      }
-      
-      const [year, month, day] = parts;
-      const numYear = parseInt(year, 10);
-      const numMonth = parseInt(month, 10);
-      const numDay = parseInt(day, 10);
-
-      if (isNaN(numYear) || isNaN(numMonth) || isNaN(numDay)) {
-        throw new Error('不正な日付形式です');
-      }
-
-      return `${numYear}年${numMonth}月${numDay}日`;
-    } catch (error) {
-      console.error('日付のフォーマットエラー:', error, dateString);
-      return '不明な日付';
+    if (!dateString) {
+      return '日付未設定';
     }
+    return dateString;
   };
 
   const translateTravelMode = (mode: string) => {
@@ -218,8 +202,12 @@ export default function HistoryPage() {
         {Object.keys(groupedMovements)
           .sort((a, b) => {
             // 日付文字列をDateオブジェクトに変換してから比較
-            const [yearA, monthA, dayA] = a.split('-');
-            const [yearB, monthB, dayB] = b.split('-');
+            const yearA = a.split('年')[0];
+            const monthA = a.split('年')[1].split('月')[0];
+            const dayA = a.split('月')[1].split('日')[0];
+            const yearB = b.split('年')[0];
+            const monthB = b.split('年')[1].split('月')[0];
+            const dayB = b.split('月')[1].split('日')[0];
             const dateA = new Date(Number(yearA), Number(monthA) - 1, Number(dayA));
             const dateB = new Date(Number(yearB), Number(monthB) - 1, Number(dayB));
             return dateB.getTime() - dateA.getTime();
@@ -246,7 +234,7 @@ export default function HistoryPage() {
                     {groupedMovements[date].map((movement) => (
                       <tr key={movement.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatDateTime(movement.timestamp)}
+                          {formatDateTime(movement.created_at || movement.timestamp)}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900 whitespace-nowrap">
                           {movement.origin}
@@ -258,7 +246,7 @@ export default function HistoryPage() {
                           {movement.distance}
                         </td>
                         <td className="px-6 py-4 text-sm text-blue-600 font-medium">
-                          {(parseFloat(movement.distance) / 800 * 0.00001).toFixed(8) + ' ETH'}
+                          {((parseFloat(movement.distance) / 800) * 0.00001).toFixed(8) + ' ETH'}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">
                           <button
