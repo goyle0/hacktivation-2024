@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { GoogleMap, DirectionsRenderer, useJsApiLoader } from '@react-google-maps/api';
 import usePlacesAutocomplete, { getGeocode, getLatLng } from 'use-places-autocomplete';
 
@@ -17,9 +18,9 @@ const center = {
     lng: 130.4205
 };
 
-type TransportMode = 'WALKING' | 'BICYCLING' | 'DRIVING';
 
 export default function RecordPage() {
+    const router = useRouter();
     const { isLoaded } = useJsApiLoader({
         googleMapsApiKey: API_KEY,
         libraries: libraries,
@@ -28,13 +29,12 @@ export default function RecordPage() {
     const [recordedAt, setRecordedAt] = useState<string>(() => {
         const now = new Date();
         const offset = now.getTimezoneOffset();
-        return new Date(now.getTime() - (offset * 60 * 1000)).toISOString().slice(0, 16);
+        return new Date(now.getTime() - (offset * 60 * 1000)).toISOString().slice(0, 19);
     });
 
     const [distance, setDistance] = useState<string>("");
     const [duration, setDuration] = useState<string>("");
-    const [transportMode, setTransportMode] = useState<TransportMode>('WALKING');
-    const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null);
+        const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null);
     const [error, setError] = useState<string>("");
 
     const {
@@ -80,7 +80,7 @@ export default function RecordPage() {
             const results = await directionsService.route({
                 origin: originLocation,
                 destination: destLocation,
-                travelMode: google.maps.TravelMode[transportMode],
+                travelMode: google.maps.TravelMode.WALKING,
             });
 
             setDirectionsResponse(results);
@@ -93,13 +93,13 @@ export default function RecordPage() {
             setDistance("");
             setDuration("");
         }
-    }, [originValue, destValue, transportMode]);
+    }, [originValue, destValue]);
 
     useEffect(() => {
         if (originValue && destValue) {
             calculateRoute();
         }
-    }, [originValue, destValue, transportMode, calculateRoute]);
+    }, [originValue, destValue, calculateRoute]);
 
     const formatDateToISO = (dateString: string): string => {
         const date = new Date(dateString);
@@ -118,11 +118,10 @@ export default function RecordPage() {
                 destination: destValue,
                 distance: distance,
                 duration: duration,
-                transportMode: transportMode,
-                timestamp: formatDateToISO(recordedAt),
+                                timestamp: formatDateToISO(recordedAt),
             };
 
-            const response = await fetch('/api/routes', {
+            const response = await fetch('http://localhost:3003/api/routes', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -134,7 +133,7 @@ export default function RecordPage() {
                 throw new Error('保存に失敗しました。時間をおいて再度お試しください。');
             }
 
-            alert('移動記録を保存しました！');
+            router.push('/history');
 
             // フォームをリセット
             setOriginValue("");
@@ -146,7 +145,7 @@ export default function RecordPage() {
             setRecordedAt(() => {
                 const now = new Date();
                 const offset = now.getTimezoneOffset();
-                return new Date(now.getTime() - (offset * 60 * 1000)).toISOString().slice(0, 16);
+                return new Date(now.getTime() - (offset * 60 * 1000)).toISOString().slice(0, 19);
             });
         } catch (error) {
             console.error('Error saving record:', error);
@@ -163,50 +162,20 @@ export default function RecordPage() {
             <h1 className="text-2xl font-bold mb-6">移動記録</h1>
             <div className="space-y-4">
                 <div>
-                    <label className="block text-sm font-medium mb-2">日時</label>
+                    <label className="block text-sm font-medium mb-2">記録日時</label>
                     <input
                         type="datetime-local"
                         value={recordedAt}
-                        onChange={(e) => setRecordedAt(e.target.value)}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            // 秒を付加して保存
+                            setRecordedAt(value.length > 16 ? value : value + ':00');
+                        }}
                         className="w-full p-2 border rounded"
+                        step="1"  // 秒単位の入力を許可
                     />
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium mb-2">移動手段</label>
-                    <div className="flex gap-4">
-                        <label className="flex items-center">
-                            <input
-                                type="radio"
-                                value="WALKING"
-                                checked={transportMode === 'WALKING'}
-                                onChange={(e) => setTransportMode(e.target.value as TransportMode)}
-                                className="mr-2"
-                            />
-                            徒歩
-                        </label>
-                        <label className="flex items-center">
-                            <input
-                                type="radio"
-                                value="BICYCLING"
-                                checked={transportMode === 'BICYCLING'}
-                                onChange={(e) => setTransportMode(e.target.value as TransportMode)}
-                                className="mr-2"
-                            />
-                            自転車
-                        </label>
-                        <label className="flex items-center">
-                            <input
-                                type="radio"
-                                value="DRIVING"
-                                checked={transportMode === 'DRIVING'}
-                                onChange={(e) => setTransportMode(e.target.value as TransportMode)}
-                                className="mr-2"
-                            />
-                            車
-                        </label>
-                    </div>
-                </div>
 
                 <div>
                     <label className="block text-sm font-medium mb-2">出発地</label>
@@ -217,7 +186,6 @@ export default function RecordPage() {
                             value={originValue}
                             onChange={(e) => setOriginValue(e.target.value)}
                             className="w-full p-2 border rounded"
-                            disabled={!isLoaded || !originReady}
                         />
                         {originStatus === "OK" && (
                             <ul className="absolute z-10 bg-white border rounded mt-1 w-full">
@@ -247,7 +215,6 @@ export default function RecordPage() {
                             value={destValue}
                             onChange={(e) => setDestValue(e.target.value)}
                             className="w-full p-2 border rounded"
-                            disabled={!isLoaded || !destReady}
                         />
                         {destStatus === "OK" && (
                             <ul className="absolute z-10 bg-white border rounded mt-1 w-full">

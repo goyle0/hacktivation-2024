@@ -5,7 +5,7 @@ const pool = new Pool({
     host: 'localhost',
     database: 'movement_db',
     password: 'postgres',
-    port: 5432,
+    port: 5433,
 });
 
 export const initDatabase = async () => {

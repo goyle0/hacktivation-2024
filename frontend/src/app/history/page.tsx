@@ -8,9 +8,10 @@ interface Movement {
   destination: string;
   distance: string;
   travel_mode: string;
-  memo: string;
+  timestamp: string;
+  memo?: string;
   created_at: string;
-  recorded_at: string;
+  eth_amount?: string;
 }
 
 export default function HistoryPage() {
@@ -21,15 +22,18 @@ export default function HistoryPage() {
   useEffect(() => {
     const fetchMovements = async () => {
       try {
-        const response = await fetch('http://localhost:3003/api/movements');
+        const response = await fetch('http://localhost:3003/api/routes');
         if (!response.ok) {
           throw new Error('データの取得に失敗しました');
         }
         const data = await response.json();
         // 記録日時でグループ化
         const grouped = data.reduce((groups: { [key: string]: Movement[] }, movement: Movement) => {
-          // 記録日時をDateオブジェクトに変換してから日付文字列を生成
-          const dateKey = movement.recorded_at ? movement.recorded_at.split('T')[0] : '不明';
+          const date = new Date(movement.timestamp);
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const dateKey = `${year}-${month}-${day}`;
 
           if (!groups[dateKey]) {
             groups[dateKey] = [];
@@ -41,7 +45,7 @@ export default function HistoryPage() {
         // 各グループ内を記録時間順にソート
         Object.keys(grouped).forEach(date => {
           grouped[date].sort((a: Movement, b: Movement) =>
-            new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
         });
 
@@ -56,24 +60,64 @@ export default function HistoryPage() {
     fetchMovements();
   }, []);
 
-  const formatTime = (dateString: string) => {
+  const formatDateTime = (dateString: string) => {
     try {
+      if (!dateString) {
+        throw new Error('日時が指定されていません');
+      }
+
       const date = new Date(dateString);
-      return new Intl.DateTimeFormat('ja-JP', {
-        hour: '2-digit',
-        minute: '2-digit'
-      }).format(date);
+      if (isNaN(date.getTime())) {
+        throw new Error('不正な日時形式です');
+      }
+
+      // JSTに変換（UTCからの9時間オフセット）
+      const jstDate = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+
+      const year = jstDate.getFullYear();
+      const month = String(jstDate.getMonth() + 1).padStart(2, '0');
+      const day = String(jstDate.getDate()).padStart(2, '0');
+      const hours = String(jstDate.getHours()).padStart(2, '0');
+      const minutes = String(jstDate.getMinutes()).padStart(2, '0');
+      const seconds = String(jstDate.getSeconds()).padStart(2, '0');
+
+      return `${year}年${month}月${day}日 ${hours}:${minutes}:${seconds}`;
     } catch (error) {
-      console.error('日時のフォーマットエラー:', error);
-      return '--:--';
+      console.error('日時のフォーマットエラー:', error, dateString);
+      return '不明な日時';
+    }
+  };
+
+  const formatGroupDate = (dateString: string) => {
+    try {
+      if (!dateString) {
+        throw new Error('日時が指定されていません');
+      }
+
+      const parts = dateString.split('-');
+      if (parts.length !== 3) {
+        throw new Error('不正な日付形式です');
+      }
+      
+      const [year, month, day] = parts;
+      const numYear = parseInt(year, 10);
+      const numMonth = parseInt(month, 10);
+      const numDay = parseInt(day, 10);
+
+      if (isNaN(numYear) || isNaN(numMonth) || isNaN(numDay)) {
+        throw new Error('不正な日付形式です');
+      }
+
+      return `${numYear}年${numMonth}月${numDay}日`;
+    } catch (error) {
+      console.error('日付のフォーマットエラー:', error, dateString);
+      return '不明な日付';
     }
   };
 
   const translateTravelMode = (mode: string) => {
     const modes: { [key: string]: string } = {
       'WALKING': '徒歩',
-      'BICYCLING': '自転車',
-      'DRIVING': '車'
     };
     return modes[mode] || mode;
   };
@@ -102,46 +146,66 @@ export default function HistoryPage() {
         {Object.keys(groupedMovements)
           .sort((a, b) => {
             // 日付文字列をDateオブジェクトに変換してから比較
-            return new Date(b).getTime() - new Date(a).getTime();
+            const [yearA, monthA, dayA] = a.split('-');
+            const [yearB, monthB, dayB] = b.split('-');
+            const dateA = new Date(Number(yearA), Number(monthA) - 1, Number(dayA));
+            const dateB = new Date(Number(yearB), Number(monthB) - 1, Number(dayB));
+            return dateB.getTime() - dateA.getTime();
           })
           .map((date) => (
             <div key={date} className="bg-white shadow-lg rounded-lg overflow-hidden">
               <div className="bg-gray-100 px-6 py-4">
-                <h2 className="text-lg font-semibold text-gray-900">{date}</h2>
+                <h2 className="text-lg font-semibold text-gray-900">{formatGroupDate(date)}</h2>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">記録時刻</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">記録日時</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">出発地</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">目的地</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">移動距離</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">移動手段</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">メモ</th>
+<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">移動距離</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">獲得Eth</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Eth受け取り申請</th>
+<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">メモ</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {groupedMovements[date].map((movement) => (
                       <tr key={movement.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatTime(movement.recorded_at)}
+                          {formatDateTime(movement.timestamp)}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
+                        <td className="px-6 py-4 text-sm text-gray-900 whitespace-nowrap">
                           {movement.origin}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">
                           {movement.destination}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {movement.distance}
+<td className="px-6 py-4 text-sm text-gray-900">
+  {movement.distance}
+</td>
+                        <td className="px-6 py-4 text-sm text-blue-600 font-medium">
+                          {(parseFloat(movement.distance) / 800 * 0.00001).toFixed(8) + ' ETH'}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {translateTravelMode(movement.travel_mode)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {movement.memo}
-                        </td>
+<td className="px-6 py-4 text-sm text-gray-900">
+  <button
+    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+    onClick={() => {
+      alert('Eth受け取り申請を送信しました');
+    }}
+  >
+    Eth受け取り申請
+  </button>
+</td>
+<td className="px-6 py-4 text-sm text-gray-900">
+  <textarea
+    defaultValue={movement.memo}
+    placeholder="メモを入力"
+    className="w-full p-2 border rounded"
+    rows={2}
+  />
+</td>
                       </tr>
                     ))}
                   </tbody>
