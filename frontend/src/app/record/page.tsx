@@ -6,7 +6,11 @@ import { GoogleMap, DirectionsRenderer, useJsApiLoader } from '@react-google-map
 import usePlacesAutocomplete, { getGeocode, getLatLng } from 'use-places-autocomplete';
 
 const libraries: ("places")[] = ["places"];
-const API_KEY = "AIzaSyCNDW8Tmx_FIpsLXhYQhpWp9Tgo5qf3Ivg";
+const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
+
+if (!process.env.NEXT_PUBLIC_GOOGLE_API_KEY) {
+    console.error('Google Maps APIキーが設定されていません。.env.localファイルを確認してください。');
+}
 
 const containerStyle = {
     width: '100%',

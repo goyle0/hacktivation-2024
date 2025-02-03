@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     env: {
-        GOOGLE_MAPS_API_KEY: 'AIzaSyCNDW8Tmx_FIpsLXhYQhpWp9Tgo5qf3Ivg',
+        GOOGLE_MAPS_API_KEY: 'AIzaSyCFMqkdOccm1x91KUohKd2FqWGu6sdfM-E',
     },
     async rewrites() {
         return [

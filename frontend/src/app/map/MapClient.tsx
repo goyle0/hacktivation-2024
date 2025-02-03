@@ -208,7 +208,7 @@ export default function MapClient() {
 
             <div className="flex-1">
                 <LoadScript
-                    googleMapsApiKey="AIzaSyCNDW8Tmx_FIpsLXhYQhpWp9Tgo5qf3Ivg"
+                    googleMapsApiKey="AIzaSyCFMqkdOccm1x91KUohKd2FqWGu6sdfM-E"
                     libraries={libraries}
                 >
                     <GoogleMap
