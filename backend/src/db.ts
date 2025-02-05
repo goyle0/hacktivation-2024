@@ -18,8 +18,44 @@ export const initDatabase = async () => {
                 distance TEXT NOT NULL,
                 duration TEXT NOT NULL,
                 travel_mode TEXT NOT NULL DEFAULT 'DRIVING',
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                verified BOOLEAN DEFAULT FALSE,
+                pending_approval BOOLEAN DEFAULT FALSE,
+                tx_hash TEXT,
+                wallet_address TEXT
             );
+
+            -- 既存のテーブルに新しいカラムを追加（エラーを無視）
+            DO $$
+            BEGIN
+                BEGIN
+                    ALTER TABLE movements ADD COLUMN verified BOOLEAN DEFAULT FALSE;
+                EXCEPTION
+                    WHEN duplicate_column THEN
+                        NULL;
+                END;
+
+                BEGIN
+                    ALTER TABLE movements ADD COLUMN pending_approval BOOLEAN DEFAULT FALSE;
+                EXCEPTION
+                    WHEN duplicate_column THEN
+                        NULL;
+                END;
+
+                BEGIN
+                    ALTER TABLE movements ADD COLUMN tx_hash TEXT;
+                EXCEPTION
+                    WHEN duplicate_column THEN
+                        NULL;
+                END;
+
+                BEGIN
+                    ALTER TABLE movements ADD COLUMN wallet_address TEXT;
+                EXCEPTION
+                    WHEN duplicate_column THEN
+                        NULL;
+                END;
+            END $$;
         `);
         console.log('Database initialized successfully');
     } catch (error) {

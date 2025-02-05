@@ -14,6 +14,8 @@ interface Movement {
   memo?: string;
   created_at: string;
   eth_amount?: string;
+  verified?: boolean;
+  pending_approval?: boolean;
 }
 
 export default function HistoryPage() {
@@ -106,16 +108,30 @@ export default function HistoryPage() {
       const contract = new ethers.Contract(contractAddress, MovementRecordABI, signer);
 
       // スマートコントラクトの関数を呼び出し
-      const ethAmount = (parseFloat(movement.distance) / 0.8) * 0.00001;
-      const tx = await contract.claimReward(
+      const tx = await contract.recordRoute(
         movement.origin,
         movement.destination,
         movement.distance,
-        movement.created_at || movement.timestamp,
-        ethers.utils.parseEther(ethAmount.toFixed(8))
+        Math.floor(new Date(movement.created_at || movement.timestamp).getTime() / 1000)
       );
 
-      alert('Eth受け取り申請を送信しました');
+      // トランザクションの完了を待つ
+      await tx.wait();
+      
+      // バックエンドに承認待ち状態を通知
+      await fetch('http://localhost:3003/api/routes/pending-approval', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          routeId: movement.id,
+          txHash: tx.hash,
+          walletAddress: account
+        }),
+      });
+
+      alert('Eth受け取り申請を送信しました。承認をお待ちください。');
     } catch (err) {
       console.error("Failed to claim ETH:", err);
       setError("Eth受け取り申請に失敗しました");
@@ -226,6 +242,7 @@ export default function HistoryPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">目的地</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">移動距離</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">獲得Eth</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">承認状態</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Eth受け取り申請</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">メモ</th>
                     </tr>
@@ -247,6 +264,15 @@ export default function HistoryPage() {
                         </td>
                         <td className="px-6 py-4 text-sm text-blue-600 font-medium">
                           {((parseFloat(movement.distance) / 0.8) * 0.00001).toFixed(8) + ' ETH'}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          {movement.verified ? (
+                            <span className="text-green-600 font-medium">承認済み</span>
+                          ) : movement.pending_approval ? (
+                            <span className="text-yellow-600 font-medium">承認待ち</span>
+                          ) : (
+                            <span className="text-gray-500">未申請</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">
                           <button

@@ -40,6 +40,48 @@ app.get('/api/routes', async (req, res) => {
     }
 });
 
+// 承認待ち状態を更新するエンドポイント
+app.post('/api/routes/pending-approval', async (req, res) => {
+    try {
+        const { routeId, txHash, walletAddress } = req.body;
+
+        const result = await pool.query(
+            'UPDATE movements SET pending_approval = TRUE, tx_hash = $1, wallet_address = $2 WHERE id = $3 RETURNING *',
+            [txHash, walletAddress, routeId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: '記録が見つかりません' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error updating pending approval:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// 承認するエンドポイント
+app.post('/api/routes/verify', async (req, res) => {
+    try {
+        const { routeId } = req.body;
+
+        const result = await pool.query(
+            'UPDATE movements SET verified = TRUE, pending_approval = FALSE WHERE id = $1 RETURNING *',
+            [routeId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: '記録が見つかりません' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error verifying route:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 const startServer = async () => {
     try {
         await initDatabase();
