@@ -1,8 +1,15 @@
+/* TailwindCSSの基本スタイル、コンポーネント、ユーティリティクラスのインポート */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * ベースレイヤーのカスタマイズ
+ * アプリケーション全体で使用するカラーテーマと設定を定義
+ */
 @layer base {
+
+    /* ライトモードのカラーテーマ変数 */
     :root {
         --background: 0 0% 100%;
         --foreground: 222.2 84% 4.9%;
@@ -36,6 +43,7 @@
         --radius: 0.5rem;
     }
 
+    /* ダークモードのカラーテーマ変数 */
     .dark {
         --background: 222.2 84% 4.9%;
         --foreground: 210 40% 98%;
@@ -68,11 +76,18 @@
     }
 }
 
+/**
+ * グローバルスタイルの定義
+ * 全要素に対するボーダーとボディの背景色・文字色の設定
+ */
 @layer base {
+
+    /* すべての要素にボーダーカラーを適用 */
     * {
         @apply border-border;
     }
 
+    /* ボディ要素のベーススタイル */
     body {
         @apply bg-background text-foreground;
     }

@@ -1,27 +1,41 @@
 "use client";
 
+/**
+ * 地図表示と経路検索機能を提供するクライアントコンポーネント
+ * Google Maps APIを使用して、経路の検索・表示・保存機能を実装
+ */
+
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { GoogleMap, DirectionsRenderer, LoadScript } from '@react-google-maps/api';
 import usePlacesAutocomplete, { getGeocode, getLatLng } from 'use-places-autocomplete';
 
+// 地図コンテナのスタイル設定
+// ヘッダーの高さ(64px)を考慮した全画面表示
 const containerStyle = {
     width: '100%',
     height: 'calc(100vh - 64px)'
 };
 
+// 地図の初期中心座標（東京）
 const center = {
     lat: 35.6812362,
     lng: 139.7671248
 };
 
+// Google Maps APIで使用するライブラリの指定
 const libraries: ("places")[] = ["places"];
 
+/**
+ * 地図コンポーネント
+ * 経路検索、表示、保存機能を提供する
+ */
 export default function MapClient() {
+    // 経路情報の状態管理
     const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null);
-    const [distance, setDistance] = useState<string>("");
-    const [duration, setDuration] = useState<string>("");
-    const originRef = useRef<HTMLInputElement>(null);
-    const destinationRef = useRef<HTMLInputElement>(null);
+    const [distance, setDistance] = useState<string>("");          // 距離
+    const [duration, setDuration] = useState<string>("");          // 所要時間
+    const originRef = useRef<HTMLInputElement>(null);             // 出発地入力フィールドの参照
+    const destinationRef = useRef<HTMLInputElement>(null);        // 目的地入力フィールドの参照
 
     const {
         ready: originReady,
@@ -51,6 +65,10 @@ export default function MapClient() {
         setIsLoaded(true);
     }, []);
 
+    /**
+     * 経路計算処理
+     * 出発地と目的地の住所から経路情報を取得し、地図上に表示
+     */
     const calculateRoute = useCallback(async () => {
         if (!originValue || !destValue || !isLoaded) {
             return;
@@ -83,6 +101,10 @@ export default function MapClient() {
         }
     }, [originValue, destValue]);
 
+    /**
+     * 経路保存処理
+     * 計算された経路情報をバックエンドAPIに送信して保存
+     */
     const saveRoute = async () => {
         if (!directionsResponse) return;
 

@@ -1,44 +1,63 @@
 'use client';
 
+/**
+ * 移動記録ページコンポーネント
+ * Google Mapsを使用して移動経路を記録し、バックエンドに保存する機能を提供
+ */
+
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { GoogleMap, DirectionsRenderer, useJsApiLoader } from '@react-google-maps/api';
 import usePlacesAutocomplete, { getGeocode, getLatLng } from 'use-places-autocomplete';
 
+// Google Maps APIで使用するライブラリの指定
 const libraries: ("places")[] = ["places"];
+// Google Maps APIキーの取得
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
+// APIキーが設定されていない場合のエラー表示
 if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
     console.error('Google Maps APIキーが設定されていません。.env.localファイルを確認してください。');
 }
 
+// 地図コンテナのスタイル設定
 const containerStyle = {
     width: '100%',
     height: '400px'
 };
 
+// 地図の初期中心座標（福岡）
 const center = {
     lat: 33.5902,
     lng: 130.4205
 };
 
+/**
+ * 移動記録ページのメインコンポーネント
+ * 出発地・目的地の入力、経路の表示、記録の保存機能を提供
+ */
 export default function RecordPage() {
+    // Next.jsのルーター
     const router = useRouter();
+
+    // Google Maps APIのロード状態管理
     const { isLoaded } = useJsApiLoader({
         googleMapsApiKey: API_KEY,
         libraries: libraries,
     });
 
+    // 記録日時の状態管理（現在時刻で初期化）
     const [recordedAt, setRecordedAt] = useState<string>(() => {
         const now = new Date();
         const offset = now.getTimezoneOffset();
         return new Date(now.getTime() - (offset * 60 * 1000)).toISOString().slice(0, 19);
     });
 
-    const [distance, setDistance] = useState<string>("");
-    const [duration, setDuration] = useState<string>("");
-    const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null);
-    const [error, setError] = useState<string>("");
+    // 経路情報の状態管理
+    const [distance, setDistance] = useState<string>("");      // 移動距離
+    const [duration, setDuration] = useState<string>("");      // 所要時間
+    const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null);  // 経路情報
+    const [error, setError] = useState<string>("");           // エラーメッセージ
 
     const {
         ready: originReady,
@@ -62,6 +81,10 @@ export default function RecordPage() {
         debounce: 300,
     });
 
+    /**
+     * 経路計算処理
+     * 出発地と目的地の住所から経路情報を取得
+     */
     const calculateRoute = useCallback(async () => {
         if (!originValue || !destValue) {
             return;
@@ -104,6 +127,12 @@ export default function RecordPage() {
         }
     }, [originValue, destValue, calculateRoute]);
 
+    /**
+     * 日付文字列をISO形式に変換
+     * タイムゾーンを考慮して変換を行う
+     * @param dateString - 変換する日付文字列
+     * @returns ISO形式の日付文字列
+     */
     const formatDateToISO = (dateString: string): string => {
         const date = new Date(dateString);
         // タイムゾーンオフセットを考慮して変換
@@ -111,6 +140,10 @@ export default function RecordPage() {
         return new Date(date.getTime() - userTimezoneOffset).toISOString();
     };
 
+    /**
+     * 記録保存処理
+     * 入力された移動記録をバックエンドAPIに送信
+     */
     const handleSubmit = async () => {
         if (!originValue || !destValue || !distance || !recordedAt) {
             alert('全ての項目を入力してください。');
