@@ -63,6 +63,12 @@ export default function MapClient() {
 
     useEffect(() => {
         setIsLoaded(true);
+        // 環境変数の読み込み状態をデバッグ
+        console.log('NEXT_PUBLIC_GOOGLE_API_KEY status:', {
+            isDefined: typeof process.env.NEXT_PUBLIC_GOOGLE_API_KEY !== 'undefined',
+            isEmpty: process.env.NEXT_PUBLIC_GOOGLE_API_KEY === '',
+            length: process.env.NEXT_PUBLIC_GOOGLE_API_KEY?.length
+        });
     }, []);
 
     /**
@@ -230,8 +236,16 @@ export default function MapClient() {
 
             <div className="flex-1">
                 <LoadScript
-                    googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_API_KEY || ''}
+                    googleMapsApiKey={(window as any).NEXT_PUBLIC_GOOGLE_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_API_KEY || ''}
                     libraries={libraries}
+                    onLoad={() => {
+                        const apiKey = (window as any).NEXT_PUBLIC_GOOGLE_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
+                        if (!apiKey) {
+                            console.error('Google Maps APIキーが設定されていません。.env.localファイルを確認してください。');
+                        } else {
+                            console.log('Google Maps APIキーが正常に読み込まれました。');
+                        }
+                    }}
                 >
                     <GoogleMap
                         mapContainerStyle={containerStyle}

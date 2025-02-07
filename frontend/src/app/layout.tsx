@@ -30,6 +30,14 @@ export default function RootLayout({
 }) {
     return (
         <html lang="ja">
+            <head>
+                <script
+                    id="google-maps-api-key"
+                    dangerouslySetInnerHTML={{
+                        __html: `window.NEXT_PUBLIC_GOOGLE_API_KEY="${process.env.NEXT_PUBLIC_GOOGLE_API_KEY}";`,
+                    }}
+                />
+            </head>
             <body>
                 {/* グローバルヘッダーコンポーネント */}
                 <Header />
