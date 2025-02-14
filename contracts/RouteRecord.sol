@@ -8,12 +8,9 @@ pragma solidity ^0.8.21;
  */
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
-
 contract RouteRecord is Ownable {
-    using Counters for Counters.Counter;
     /// @dev ルートIDの連番を管理するカウンター
-    Counters.Counter private _recordIds;
+    uint256 private _recordIds;
 
     /**
      * @dev ルート情報を格納する構造体
@@ -69,7 +66,7 @@ contract RouteRecord is Ownable {
      * @dev コントラクトのコンストラクタ
      * OpenZeppelinのOwnableコントラクトを初期化します
      */
-    constructor() Ownable() {}
+    constructor() Ownable(msg.sender) {}
 
     /**
      * @dev 新しいルートを記録する関数
@@ -85,8 +82,8 @@ contract RouteRecord is Ownable {
         string memory distance,
         uint256 timestamp
     ) public returns (uint256) {
-        _recordIds.increment();
-        uint256 newRecordId = _recordIds.current();
+        _recordIds += 1;
+        uint256 newRecordId = _recordIds;
 
         Route memory newRoute = Route({
             id: newRecordId,

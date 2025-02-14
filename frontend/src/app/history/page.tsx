@@ -99,13 +99,21 @@ export default function HistoryPage() {
     try {
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
-      
-      const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
+
+      const contractAddress = process.env.NEXT_PUBLIC_ROUTE_RECORD_ADDRESS;
       if (!contractAddress) {
-        throw new Error("Contract address is not configured");
+        throw new Error("スマートコントラクトのアドレスが設定されていません。環境変数 NEXT_PUBLIC_ROUTE_RECORD_ADDRESS を確認してください。");
       }
-      
+
+      console.log('Contract Address:', contractAddress);
       const contract = new ethers.Contract(contractAddress, MovementRecordABI, signer);
+
+      console.log('Creating transaction with params:', {
+        origin: movement.origin,
+        destination: movement.destination,
+        distance: movement.distance,
+        timestamp: Math.floor(new Date(movement.created_at || movement.timestamp).getTime() / 1000)
+      });
 
       // スマートコントラクトの関数を呼び出し
       const tx = await contract.recordRoute(
@@ -115,11 +123,14 @@ export default function HistoryPage() {
         Math.floor(new Date(movement.created_at || movement.timestamp).getTime() / 1000)
       );
 
-      // トランザクションの完了を待つ
-      await tx.wait();
-      
+      console.log('Transaction hash:', tx.hash);
+
+      console.log('Waiting for transaction confirmation...');
+      const receipt = await tx.wait();
+      console.log('Transaction confirmed:', receipt);
+
       // バックエンドに承認待ち状態を通知
-      await fetch('http://localhost:3003/api/routes/pending-approval', {
+      const response = await fetch('http://localhost:3003/api/routes/pending-approval', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -131,10 +142,18 @@ export default function HistoryPage() {
         }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`バックエンドAPI エラー: ${errorData.message || response.statusText}`);
+      }
+
       alert('Eth受け取り申請を送信しました。承認をお待ちください。');
+
+      // 履歴を再読み込み
+      await fetchMovements();
     } catch (err) {
       console.error("Failed to claim ETH:", err);
-      setError("Eth受け取り申請に失敗しました");
+      setError(`Eth受け取り申請に失敗しました: ${err instanceof Error ? err.message : '不明なエラー'}`);
     }
   };
 

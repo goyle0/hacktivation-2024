@@ -9,14 +9,16 @@ import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { GoogleMap, DirectionsRenderer, useJsApiLoader } from '@react-google-maps/api';
 import usePlacesAutocomplete, { getGeocode, getLatLng } from 'use-places-autocomplete';
+import { ethers } from 'ethers';
+import type { ExternalProvider } from '@ethersproject/providers';
 
 // Google Maps APIで使用するライブラリの指定
 const libraries: ("places")[] = ["places"];
 // Google Maps APIキーの取得
-const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
 
 // APIキーが設定されていない場合のエラー表示
-if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
+if (!process.env.NEXT_PUBLIC_GOOGLE_API_KEY) {
     console.error('Google Maps APIキーが設定されていません。.env.localファイルを確認してください。');
 }
 
@@ -144,6 +146,9 @@ export default function RecordPage() {
      * 記録保存処理
      * 入力された移動記録をバックエンドAPIに送信
      */
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    // 移動記録の保存処理
     const handleSubmit = async () => {
         if (!originValue || !destValue || !distance || !recordedAt) {
             alert('全ての項目を入力してください。');
@@ -151,28 +156,21 @@ export default function RecordPage() {
         }
 
         try {
-            // バックエンドに記録を保存
-            const record = {
-                origin: originValue,
-                destination: destValue,
-                distance: distance,
-                duration: duration,
-                timestamp: formatDateToISO(recordedAt),
-            };
+            setIsProcessing(true);
 
-            const response = await fetch('http://localhost:3003/api/routes', {
+            // バックエンドAPIに移動記録を保存
+            await fetch('http://localhost:3003/api/routes', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(record),
+                body: JSON.stringify({
+                    origin: originValue,
+                    destination: destValue,
+                    distance: distance,
+                    timestamp: new Date(recordedAt).toISOString(),
+                }),
             });
-
-            if (!response.ok) {
-                throw new Error('バックエンドへの保存に失敗しました。時間をおいて再度お試しください。');
-            }
-
-            router.push('/history');
 
             // フォームをリセット
             setOriginValue("");
@@ -186,9 +184,14 @@ export default function RecordPage() {
                 const offset = now.getTimezoneOffset();
                 return new Date(now.getTime() - (offset * 60 * 1000)).toISOString().slice(0, 19);
             });
+
+            alert('移動履歴を記録しました。履歴画面から承認申請を行ってください。');
+            router.push('/history');
         } catch (error) {
             console.error('Error saving record:', error);
             setError(error instanceof Error ? error.message : '移動記録の保存に失敗しました');
+        } finally {
+            setIsProcessing(false);
         }
     };
 
@@ -300,9 +303,13 @@ export default function RecordPage() {
 
                 <button
                     onClick={handleSubmit}
-                    className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                    disabled={isProcessing}
+                    className={`w-full px-4 py-2 text-white rounded ${isProcessing
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-green-500 hover:bg-green-600'
+                        }`}
                 >
-                    記録を保存
+                    {isProcessing ? '処理中...' : '記録を保存'}
                 </button>
             </div>
         </div>
