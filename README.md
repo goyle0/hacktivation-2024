@@ -1,130 +1,93 @@
-# ハックデイ 2025/02/01 プロジェクト
+# Route Record DApp
 
-## プロジェクトの概要
-このプロジェクトは、ユーザーの移動記録を管理し、移動距離に応じてETHを報酬として獲得できるWeb3アプリケーションです。
+## 概要
+Route Record DAppは、ユーザーの移動経路を記録し、ブロックチェーン上に保存するWeb3アプリケーションです。Google Maps APIを利用して経路を可視化し、移動履歴をイーサリアムブロックチェーン上で管理します。
 
-### 主な機能
-- 移動記録の登録と管理
-- 移動履歴の表示
-- MetaMask連携によるウォレット接続
-- 移動距離に応じたETH報酬の獲得
-
-## プロジェクト構成
-
-### フロントエンド (`frontend/`)
-- `src/app/` - Next.js 13のApp Routerを使用したページコンポーネント
-  - `page.tsx` - トップページ
-  - `record/page.tsx` - 移動記録登録ページ
-  - `history/page.tsx` - 移動履歴表示ページ
-- `src/components/` - 再利用可能なUIコンポーネント
-- `src/lib/` - ユーティリティ関数
-- `src/types/` - TypeScript型定義
-
-### バックエンド (`backend/`)
-- `src/` - サーバーサイドのソースコード
-  - `index.ts` - メインサーバーファイル
-  - `db.ts` - データベース接続と操作
-  - `utils/` - ユーティリティ関数
+## 主な機能
+- 移動経路の記録と表示
+- Google Mapsを使用した経路の可視化
+- スマートコントラクトによる経路データの永続化
+- 移動履歴の閲覧
 
 ## 技術スタック
+- **フロントエンド**
+  - Next.js (App Router)
+  - TypeScript
+  - Tailwind CSS
+- **ブロックチェーン**
+  - Solidity
+  - Hardhat
+  - Ethereum
+- **外部サービス**
+  - Google Maps API（レート制限実装）
 
-### フロントエンド
-- Next.js 13 (App Router)
-- React 18
-- TypeScript
-- Tailwind CSS
-- shadcn/ui (UIコンポーネントライブラリ)
-- ethers.js (Ethereum接続)
+## セットアップ手順
 
-### バックエンド
-- Node.js
-- Express
-- TypeScript
-- PostgreSQL
-
-### ブロックチェーン連携
-- MetaMask
-- Ethereum Smart Contract (移動記録と報酬管理)
-
-## 開発環境のセットアップ
-
-### 必要条件
+### 前提条件
 - Node.js v18.19.1以上
-- npm 9.2.0以上
-- Docker (PostgreSQL用)
-- MetaMask
+- MetaMaskなどのWeb3ウォレット
+- Google Maps APIキー
 
-### インストール手順
+### インストール
 
-1. リポジトリのクローン:
+1. リポジトリのクローン
 ```bash
-git clone [repository-url]
+git clone <repository-url>
+cd hacktivation-2024
 ```
 
-2. フロントエンドのセットアップ:
+2. 依存関係のインストール
 ```bash
+# スマートコントラクト
+npm install
+
+# フロントエンド
 cd frontend
 npm install
 ```
 
-3. バックエンドのセットアップ:
+3. 環境変数の設定
 ```bash
-cd backend
-npm install
+# frontend/.env.localファイルを作成
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=あなたのGoogleMapsAPIキー
+NEXT_PUBLIC_CONTRACT_ADDRESS=デプロイしたコントラクトのアドレス
 ```
 
-## 開発サーバーの起動
-
-### データベース
+4. スマートコントラクトのデプロイ
 ```bash
-docker-compose up -d
+npx hardhat compile
+npx hardhat run scripts/deploy.ts --network <ネットワーク名>
 ```
-PostgreSQLが起動します(ポート5433:5432)
 
-### フロントエンド
+5. フロントエンドの起動
 ```bash
 cd frontend
 npm run dev
 ```
-http://localhost:3000 でアクセス可能
 
-### バックエンド
-```bash
-cd backend
-npm run dev
+## 開発環境
+- Node.js v18.19.1
+- npm 9.2.0
+- pnpm 9.15.4
+
+## プロジェクト構造
 ```
-http://localhost:3003 でAPIサーバーが起動
-
-## 環境変数の設定
-
-### フロントエンド (.env)
+hacktivation-2024/
+├── contracts/           # スマートコントラクト
+│   └── RouteRecord.sol
+├── frontend/           # フロントエンドアプリケーション
+│   ├── src/
+│   │   ├── app/       # Next.js ページコンポーネント
+│   │   ├── contracts/ # コントラクト型定義
+│   │   └── types/     # TypeScript型定義
+│   ├── next.config.js
+│   └── tailwind.config.js
+├── scripts/           # デプロイスクリプト
+└── hardhat.config.ts  # Hardhat設定
 ```
-NEXT_PUBLIC_CONTRACT_ADDRESS=<スマートコントラクトのアドレス>
-```
-
-### バックエンド (.env)
-```
-DATABASE_URL=postgresql://user:password@localhost:5433/dbname
-```
-
-## 最新の技術的更新
-
-### 2025/02/01
-- 移動履歴の日時表示を日本標準時(JST)に対応
-  - `toLocaleString`メソッドと`timeZone: 'Asia/Tokyo'`オプションを使用
-  - すべての日時表示で一貫したタイムゾーン処理を実装
-
-## 注意事項
-- MetaMaskのインストールと設定が必要です
-- スマートコントラクトのデプロイと設定が必要です
-- 開発環境では適切なテストネットワークを使用してください
-
-## コントリビューション
-1. このリポジトリをフォーク
-2. 新しいブランチを作成 (`git checkout -b feature/amazing-feature`)
-3. 変更をコミット (`git commit -m 'Add some amazing feature'`)
-4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
-5. プルリクエストを作成
 
 ## ライセンス
-このプロジェクトはMITライセンスの下で公開されています。
+MIT
+
+## 貢献
+プルリクエストやイシューの作成は歓迎します。大きな変更を行う場合は、まずイシューを作成して変更内容を議論してください。
